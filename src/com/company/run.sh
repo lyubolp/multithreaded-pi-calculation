@@ -1,0 +1,1 @@
+time java -classpath ./out/production/multithreaded-pi-calculation/ com.company.StarterClass
