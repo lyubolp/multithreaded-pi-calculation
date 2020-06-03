@@ -3,6 +3,7 @@ package com.company;
 import javax.annotation.processing.SupportedSourceVersion;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Queue;
 
 import static java.lang.StrictMath.pow;
 import static java.lang.StrictMath.sqrt;
@@ -46,7 +47,7 @@ public class StarterClass {
     }
 
     public static void main(String[] args) {
-        int[] parsed_args = handle_args(args);
+        /*int[] parsed_args = handle_args(args);
         int scale = parsed_args[0];
         int threads_count = parsed_args[1];
 
@@ -56,8 +57,6 @@ public class StarterClass {
         Calculations[] workers = new Calculations[threads_count];
         BigDecimal previous = BigDecimal.valueOf(-1);
         BigDecimal result = BigDecimal.ZERO;
-        int previous_is_from = -1;
-        int previous_is_from_thread = 0;
         BigDecimal[] results = new BigDecimal[threads_count];
 
         for (int i = 0; i < threads_count; i++) {
@@ -81,7 +80,7 @@ public class StarterClass {
                     } catch (InterruptedException ex) {
                         System.out.print("Error");
                     }
-                    result = result.add(workers[current_thread].result);
+                    result = workers[current_thread].result;
 
                     if (previous.subtract(result).compareTo(BigDecimal.ZERO) == 0) {
                         should_continue = false;
@@ -94,19 +93,69 @@ public class StarterClass {
                     n++;
                 }
             }
+        }*/
+        boolean should_continue = false;
+        int scale = 100;
+        BigDecimal previous = BigDecimal.valueOf(1103*sqrt(8));
+        previous = previous.divide(BigDecimal.valueOf(pow(99,2)), scale, RoundingMode.HALF_UP);
+        BigDecimal result = BigDecimal.ZERO;
+        int n = 0;
+        Thread[] threads = new Thread[1];
+
+        CalculationsBasedOnPrevious re = new CalculationsBasedOnPrevious(result, previous, n, scale);
+        Thread th = new Thread(re);
+        threads[0] = th;
+
+        th.start();
+        try {
+            threads[0].join();
+        } catch (InterruptedException ex) {
+            System.out.print("Error");
         }
-        for (int current_thread = 0; current_thread < threads_count; current_thread++) {
+
+        result = re.result;
+        result = BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP);
+        System.out.println(result);
+
+        while(should_continue) {
+            CalculationsBasedOnPrevious r = new CalculationsBasedOnPrevious(result, previous, n, scale);
+            Thread t = new Thread(r);
+            threads[0] = t;
+
+            t.start();
+            try {
+                threads[0].join();
+            } catch (InterruptedException ex) {
+                System.out.print("Error");
+            }
+
+            //System.out.println(result);
+            //result = BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP);
+            result = r.result;
+
+            if(previous.subtract(result).compareTo(BigDecimal.ZERO) == 0)
+            {
+                should_continue = false;
+            }
+
+            previous = result;
+            n++;
+        }
+        /*for (int current_thread = 0; current_thread < threads_count; current_thread++) {
             try {
                 threads[current_thread].join();
             } catch (InterruptedException ex) {
                 System.out.print("Error");
             }
-        }
-        System.out.println(BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP));
+        }*/
+        //System.out.println(n);
+        //System.out.println(BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP));
+        //System.out.println(result);
 
     }
     //3.14159265358979279401149285925126360843227873615132156357983493056932100312250770614203052737207380256736559113
 }
+//0,318309878
 /*
 while(should_continue) {
             Calculations r = new Calculations(prev, result, n, scale, should_continue);

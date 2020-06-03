@@ -51,7 +51,7 @@ public class Calculations implements Runnable {
         BigDecimal first_const = BigDecimal.valueOf(sqrt(8) / (pow(99, 2)));
         BigDecimal sum = first.multiply(second);
 
-        result = first_const.multiply(sum);
+        result = result.add(first_const.multiply(sum));
         work_done = true;
 
     }
