@@ -94,30 +94,18 @@ public class StarterClass {
                 }
             }
         }*/
-        boolean should_continue = false;
-        int scale = 100;
+        boolean should_continue = true;
+        int scale = 400;
+
         BigDecimal previous = BigDecimal.valueOf(1103*sqrt(8));
         previous = previous.divide(BigDecimal.valueOf(pow(99,2)), scale, RoundingMode.HALF_UP);
         BigDecimal result = BigDecimal.ZERO;
-        int n = 0;
+        //int n = 0;
         Thread[] threads = new Thread[1];
 
-        CalculationsBasedOnPrevious re = new CalculationsBasedOnPrevious(result, previous, n, scale);
-        Thread th = new Thread(re);
-        threads[0] = th;
-
-        th.start();
-        try {
-            threads[0].join();
-        } catch (InterruptedException ex) {
-            System.out.print("Error");
-        }
-
-        result = re.result;
-        result = BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP);
-        System.out.println(result);
-
-        while(should_continue) {
+        BigDecimal EPSILON = BigDecimal.valueOf(1);
+        //while(should_continue) {
+        for(int n = 0; n < scale; n++){
             CalculationsBasedOnPrevious r = new CalculationsBasedOnPrevious(result, previous, n, scale);
             Thread t = new Thread(r);
             threads[0] = t;
@@ -129,18 +117,25 @@ public class StarterClass {
                 System.out.print("Error");
             }
 
-            //System.out.println(result);
             //result = BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP);
             result = r.result;
 
-            if(previous.subtract(result).compareTo(BigDecimal.ZERO) == 0)
+            //System.out.println("diff:" + previous.subtract(result).toPlainString());
+
+            BigDecimal result_as_pi = BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP);
+            BigDecimal prev_as_pi = BigDecimal.ONE.divide(previous, scale, RoundingMode.HALF_UP);
+
+            //System.out.println("Result as pi:" + result_as_pi);
+            //System.out.println("Diff:" + result_as_pi.subtract(prev_as_pi).toPlainString());
+            if(result_as_pi.subtract(prev_as_pi).compareTo(BigDecimal.ZERO) == 0)
             {
                 should_continue = false;
             }
 
             previous = result;
-            n++;
+            //n++;
         }
+        System.out.println(BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP));
         /*for (int current_thread = 0; current_thread < threads_count; current_thread++) {
             try {
                 threads[current_thread].join();

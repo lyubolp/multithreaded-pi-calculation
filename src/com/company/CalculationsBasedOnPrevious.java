@@ -51,10 +51,8 @@ public class CalculationsBasedOnPrevious implements Runnable {
 
         final_const = first_const.multiply(second_const);
 
-        System.out.println("n0:" + previous.toPlainString()); //n0 is okay
-        System.out.println("n1:" + previous.multiply(final_const).toPlainString()); //n1 is okay
         result = previous.add(previous.multiply(final_const));
-        System.out.println("n0+n1:" + result.toPlainString()); //n1 is okay
+        //System.out.println("n0+n1:" + result.toPlainString()); //n1 is okay
         //n0+n1 = 0,318309886
         work_done = true;
 
