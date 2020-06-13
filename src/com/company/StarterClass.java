@@ -3,12 +3,17 @@ package com.company;
 import javax.annotation.processing.SupportedSourceVersion;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
+import java.util.Stack;
+import java.util.concurrent.Semaphore;
 
 import static java.lang.StrictMath.pow;
 import static java.lang.StrictMath.sqrt;
 
 public class StarterClass {
+    private static Semaphore mutex;
     private static int[] handle_args(String[] args) {
         int[] result = new int[2];
         if (args.length == 4) {
@@ -46,24 +51,57 @@ public class StarterClass {
         return result;
     }
 
+    public static BigDecimal recfact(long start, long n) {
+        long i;
+        if (n <= 16) {
+            BigDecimal r = new BigDecimal(start);
+            for (i = start + 1; i < start + n; i++) r = r.multiply(BigDecimal.valueOf(i));
+            return r;
+        }
+        i = n / 2;
+        return recfact(start, i).multiply(recfact(start + i, n - i));
+    }
+
+    public static BigDecimal calculate_certain_n(int n, int scale)
+    {
+        BigDecimal result = BigDecimal.ONE;
+
+        BigDecimal first_part = BigDecimal.valueOf(sqrt(8));
+        first_part = first_part.divide(BigDecimal.valueOf(pow(99, 2)), scale, RoundingMode.HALF_UP);
+
+        BigDecimal second_part = recfact(1, 4*n);
+
+        BigDecimal second_part_denom_first_part = BigDecimal.valueOf(pow(4, n));
+        BigDecimal second_part_denom_second_part = recfact(1, n);
+        BigDecimal second_part_denom = second_part_denom_first_part.multiply(second_part_denom_second_part);
+        second_part_denom = second_part_denom_first_part.pow(4);
+
+        second_part = second_part.divide(second_part_denom, scale, RoundingMode.HALF_UP);
+
+        BigDecimal third_part = BigDecimal.valueOf(1103 + (26390*n));
+        BigDecimal third_part_denom = BigDecimal.valueOf(99);
+        third_part_denom = third_part_denom.pow(4*n);
+        third_part = third_part.divide(third_part_denom, scale, RoundingMode.HALF_UP);
+
+        result = result.multiply(first_part);
+        result = result.multiply(second_part);
+        result = result.multiply(third_part);
+
+        return result;
+    }
     public static void main(String[] args) {
-        /*int[] parsed_args = handle_args(args);
+        mutex = new Semaphore(1);
+        int[] parsed_args = handle_args(args);
         int scale = parsed_args[0];
         int threads_count = parsed_args[1];
 
         System.out.println("Precision: " + scale + ", Threads: " + threads_count);
 
-        Thread[] threads = new Thread[threads_count];
-        Calculations[] workers = new Calculations[threads_count];
+        /*Thread[] threads = new Thread[threads_count];
+
         BigDecimal previous = BigDecimal.valueOf(-1);
         BigDecimal result = BigDecimal.ZERO;
         BigDecimal[] results = new BigDecimal[threads_count];
-
-        for (int i = 0; i < threads_count; i++) {
-            results[i] = BigDecimal.ZERO;
-        }
-        int n = 0;
-        boolean should_continue = true;
 
         for (int i = 0; i < threads_count; i++) {
             workers[i] = new Calculations(results[i], n, scale);
@@ -71,104 +109,126 @@ public class StarterClass {
             threads[i].start();
             n++;
         }
+        */
 
-        while (should_continue) {
-            for (int current_thread = 0; current_thread < threads_count; current_thread++) {
-                if (workers[current_thread].work_done) {
+
+        BigDecimal result = BigDecimal.ZERO;
+        BigDecimal[] elements = new BigDecimal[scale];
+        List<Stack<Integer>> tasks = new ArrayList<Stack<Integer>>();
+
+        for(int i = 0; i < threads_count; i++)
+        {
+            tasks.add(new Stack<Integer>());
+        }
+        int amount_of_work_per_thread = (scale / threads_count);
+        if(scale % threads_count != 0)
+        {
+            amount_of_work_per_thread += 1;
+        }
+
+        int[] last_calculated_index = new int[threads_count];
+        int calculated_elements = 0;
+        for(int i = 0; i < threads_count; i++)
+        {
+            elements[amount_of_work_per_thread * i] = calculate_certain_n(amount_of_work_per_thread * i, scale);
+            last_calculated_index[i] = amount_of_work_per_thread * i;
+            calculated_elements++;
+            result = result.add(elements[amount_of_work_per_thread * i]);
+        }
+        for(int current_thread = 0; current_thread < threads_count; current_thread++)
+        {
+            for(int i = amount_of_work_per_thread - 1; i > 0; i--)
+            {
+                tasks.get(current_thread).push(i + (current_thread*amount_of_work_per_thread));
+            }
+        }
+
+        Thread[] threads = new Thread[threads_count];
+        CalculationsBasedOnPrevious[] workers = new CalculationsBasedOnPrevious[threads_count];
+        for(int current_thread = 0; current_thread < threads_count; current_thread++)
+        {
+            workers[current_thread] = new CalculationsBasedOnPrevious(elements[amount_of_work_per_thread * current_thread],
+                    last_calculated_index[current_thread], tasks.get(current_thread).pop(),
+                    scale);
+            threads[current_thread] = new Thread(workers[current_thread]);
+            threads[current_thread].start();
+        }
+        while(calculated_elements + threads_count < scale){
+            for(int current_thread = 0; current_thread < threads_count; current_thread++)
+            {
+                if(workers[current_thread].work_done)
+                {
                     try {
                         threads[current_thread].join();
                     } catch (InterruptedException ex) {
                         System.out.print("Error");
                     }
-                    result = workers[current_thread].result;
+                    try{
+                        mutex.acquire();
+                        result = result.add(workers[current_thread].result);
+                    }catch (InterruptedException e) {
+                        // exception handling code
+                    } finally {
+                        mutex.release();
+                    }
 
-                    if (previous.subtract(result).compareTo(BigDecimal.ZERO) == 0) {
-                        should_continue = false;
-                    } else {
-                        workers[current_thread] = new Calculations(result, n, scale);
+                    last_calculated_index[current_thread] = workers[current_thread].target_index;
+                    elements[last_calculated_index[current_thread]] = workers[current_thread].result;
+                    if(!tasks.get(current_thread).empty())
+                    {
+                        workers[current_thread] = new CalculationsBasedOnPrevious(elements[last_calculated_index[current_thread]],
+                                last_calculated_index[current_thread], tasks.get(current_thread).pop(), scale);
+
                         threads[current_thread] = new Thread(workers[current_thread]);
                         threads[current_thread].start();
-                        previous = result;
+
+                        try{
+                            mutex.acquire();
+                            calculated_elements++;
+                        }catch (InterruptedException e) {
+                            // exception handling code
+                        } finally {
+                            mutex.release();
+                        }
                     }
-                    n++;
+                    else{
+                        workers[current_thread].work_done = false;
+                    }
                 }
             }
-        }*/
-        boolean should_continue = true;
-        int scale = 400;
-
-        BigDecimal previous = BigDecimal.valueOf(1103*sqrt(8));
-        previous = previous.divide(BigDecimal.valueOf(pow(99,2)), scale, RoundingMode.HALF_UP);
-        BigDecimal result = BigDecimal.ZERO;
-        //int n = 0;
-        Thread[] threads = new Thread[1];
-
-        BigDecimal EPSILON = BigDecimal.valueOf(1);
-        //while(should_continue) {
-        for(int n = 0; n < scale; n++){
-            CalculationsBasedOnPrevious r = new CalculationsBasedOnPrevious(result, previous, n, scale);
-            Thread t = new Thread(r);
-            threads[0] = t;
-
-            t.start();
-            try {
-                threads[0].join();
-            } catch (InterruptedException ex) {
-                System.out.print("Error");
-            }
-
-            //result = BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP);
-            result = r.result;
-
-            //System.out.println("diff:" + previous.subtract(result).toPlainString());
-
-            BigDecimal result_as_pi = BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP);
-            BigDecimal prev_as_pi = BigDecimal.ONE.divide(previous, scale, RoundingMode.HALF_UP);
-
-            //System.out.println("Result as pi:" + result_as_pi);
-            //System.out.println("Diff:" + result_as_pi.subtract(prev_as_pi).toPlainString());
-            if(result_as_pi.subtract(prev_as_pi).compareTo(BigDecimal.ZERO) == 0)
+        }
+        /*for(int i = 0; i < threads_count; i++)
+        {
+            workers[i] = new CalculationsBasedOnPrevious(elements[last_calculated_index], last_calculated_index, tasks.pop(), scale);
+            threads[i] = new Thread(workers[i]);
+            threads[i].start();
+        }
+        while(calculated_elements < scale)
+        {
+            for(int current_thread = 0; current_thread < threads_count; current_thread++)
             {
-                should_continue = false;
+                if(workers[current_thread].work_done)
+                {
+                    try {
+                        threads[current_thread].join();
+                    } catch (InterruptedException ex) {
+                        System.out.print("Error");
+                    }
+                    result = result.add(workers[current_thread].result);
+                    elements[workers[current_thread].target_index] = workers[current_thread].result;
+                    last_calculated_index[current_thread] = workers[current_thread].target_index;
+                    workers[current_thread] = new CalculationsBasedOnPrevious(elements[last_calculated_index[current_thread]], last_calculated_index, tasks.pop(), scale);
+                    threads[current_thread] = new Thread(workers[current_thread]);
+                    threads[current_thread].start();
+                    calculated_elements++;
+                }
             }
-
-            previous = result;
-            //n++;
-        }
-        System.out.println(BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP));
-        /*for (int current_thread = 0; current_thread < threads_count; current_thread++) {
-            try {
-                threads[current_thread].join();
-            } catch (InterruptedException ex) {
-                System.out.print("Error");
-            }
+            //System.out.println(calculated_elements);
         }*/
-        //System.out.println(n);
-        //System.out.println(BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP));
-        //System.out.println(result);
-
+        System.out.println(BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP));
     }
-    //3.14159265358979279401149285925126360843227873615132156357983493056932100312250770614203052737207380256736559113
 }
+//3.14159265358979279401149285925126360843227873615132156357983493056932100312250770614203052737207380256736559113
 //0,318309878
-/*
-while(should_continue) {
-            Calculations r = new Calculations(prev, result, n, scale, should_continue);
-            Thread t = new Thread(r);
-            threads[0] = t;
 
-            t.start();
-            try {
-                threads[0].join();
-            } catch (InterruptedException ex) {
-                System.out.print("Error");
-            }
-
-            r.result = r.result.multiply(BigDecimal.valueOf(sqrt(8) / (pow(99, 2))));
-            result = BigDecimal.ONE.divide(r.result, scale, RoundingMode.HALF_UP);
-            prev = result;
-            n++;
-            should_continue = r.should_continue;
-        }
-*/
 
