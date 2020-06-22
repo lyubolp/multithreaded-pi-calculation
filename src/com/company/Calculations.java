@@ -3,6 +3,9 @@ package com.company;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+import static java.lang.StrictMath.pow;
+import static java.lang.StrictMath.sqrt;
+
 public class Calculations implements Runnable {
     BigDecimal prev;
     BigDecimal result;
@@ -11,13 +14,11 @@ public class Calculations implements Runnable {
     boolean should_continue;
     boolean work_done;
 
-    public Calculations(BigDecimal prev, BigDecimal result, int n, int scale, boolean should_continue)
+    public Calculations(BigDecimal result, int n, int scale)
     {
-        this.prev = prev;
         this.result = result;
         this.n = n;
         this.scale = scale;
-        this.should_continue = should_continue;
         this.work_done = false;
     }
 
@@ -47,12 +48,10 @@ public class Calculations implements Runnable {
         BigDecimal first = first_num.divide(first_denom,scale, RoundingMode.HALF_UP);
         BigDecimal second = second_num.divide(second_denom, scale, RoundingMode.HALF_UP);
 
-        result = result.add(first.multiply(second));
+        BigDecimal first_const = BigDecimal.valueOf(sqrt(8) / (pow(99, 2)));
+        BigDecimal sum = first.multiply(second);
 
-        if(prev.subtract(result).compareTo(BigDecimal.ZERO)  == 0)
-        {
-            should_continue = false;
-        }
+        result = result.add(first_const.multiply(sum));
         work_done = true;
 
     }
