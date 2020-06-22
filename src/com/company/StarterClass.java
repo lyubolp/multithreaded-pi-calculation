@@ -92,36 +92,22 @@ public class StarterClass {
     public static void main(String[] args) {
         mutex = new Semaphore(1);
         int[] parsed_args = handle_args(args);
-        int scale = parsed_args[0];
+        int amount_of_elements = parsed_args[0];
+        int scale = 1000;
         int threads_count = parsed_args[1];
 
-        System.out.println("Precision: " + scale + ", Threads: " + threads_count);
-
-        /*Thread[] threads = new Thread[threads_count];
-
-        BigDecimal previous = BigDecimal.valueOf(-1);
-        BigDecimal result = BigDecimal.ZERO;
-        BigDecimal[] results = new BigDecimal[threads_count];
-
-        for (int i = 0; i < threads_count; i++) {
-            workers[i] = new Calculations(results[i], n, scale);
-            threads[i] = new Thread(workers[i]);
-            threads[i].start();
-            n++;
-        }
-        */
-
+        System.out.println("Amount of elements: " + amount_of_elements + ", Threads: " + threads_count);
 
         BigDecimal result = BigDecimal.ZERO;
-        BigDecimal[] elements = new BigDecimal[scale];
+        BigDecimal[] elements = new BigDecimal[amount_of_elements];
         List<Stack<Integer>> tasks = new ArrayList<Stack<Integer>>();
 
         for(int i = 0; i < threads_count; i++)
         {
             tasks.add(new Stack<Integer>());
         }
-        int amount_of_work_per_thread = (scale / threads_count);
-        if(scale % threads_count != 0)
+        int amount_of_work_per_thread = (amount_of_elements / threads_count);
+        if(amount_of_elements % threads_count != 0)
         {
             amount_of_work_per_thread += 1;
         }
@@ -153,7 +139,7 @@ public class StarterClass {
             threads[current_thread] = new Thread(workers[current_thread]);
             threads[current_thread].start();
         }
-        while(calculated_elements + threads_count < scale){
+        while(calculated_elements + threads_count < amount_of_elements){
             for(int current_thread = 0; current_thread < threads_count; current_thread++)
             {
                 if(workers[current_thread].work_done)
@@ -197,34 +183,6 @@ public class StarterClass {
                 }
             }
         }
-        /*for(int i = 0; i < threads_count; i++)
-        {
-            workers[i] = new CalculationsBasedOnPrevious(elements[last_calculated_index], last_calculated_index, tasks.pop(), scale);
-            threads[i] = new Thread(workers[i]);
-            threads[i].start();
-        }
-        while(calculated_elements < scale)
-        {
-            for(int current_thread = 0; current_thread < threads_count; current_thread++)
-            {
-                if(workers[current_thread].work_done)
-                {
-                    try {
-                        threads[current_thread].join();
-                    } catch (InterruptedException ex) {
-                        System.out.print("Error");
-                    }
-                    result = result.add(workers[current_thread].result);
-                    elements[workers[current_thread].target_index] = workers[current_thread].result;
-                    last_calculated_index[current_thread] = workers[current_thread].target_index;
-                    workers[current_thread] = new CalculationsBasedOnPrevious(elements[last_calculated_index[current_thread]], last_calculated_index, tasks.pop(), scale);
-                    threads[current_thread] = new Thread(workers[current_thread]);
-                    threads[current_thread].start();
-                    calculated_elements++;
-                }
-            }
-            //System.out.println(calculated_elements);
-        }*/
         System.out.println(BigDecimal.ONE.divide(result, scale, RoundingMode.HALF_UP));
     }
 }
